@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+sse_starlette
+pyserial-asyncio
+pytest
+pytest-asyncio
