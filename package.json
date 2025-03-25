@@ -1,0 +1,13 @@
+{
+  "name": "SD1",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "python -m uvicorn server.main:app --reload",
+    "test": "pytest",
+    "postinstall": "python -m pip install -r requirements.txt"
+  },
+  "dependencies": {
+    // Include any Node dependencies your project needs
+    "concurrently": "^7.5.0"
+  }
+}
