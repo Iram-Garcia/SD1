@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Info, Mail, Menu, X } from 'lucide-react';
+import { Car, Home, Info, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 function Navigation() {
@@ -8,8 +8,8 @@ function Navigation() {
 
   const navItems = [
     { path: '/', icon: <Home className="w-5 h-5" />, label: 'Home' },
+    { path: '/vehicle', icon: <Car className="w-5 h-5" />, label: 'Add Vehicle' },
     { path: '/about', icon: <Info className="w-5 h-5" />, label: 'About' },
-    { path: '/contact', icon: <Mail className="w-5 h-5" />, label: 'Contact' },
   ];
 
   return (
