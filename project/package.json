@@ -8,6 +8,7 @@
     "test": "pytest",
     "postinstall": "python -m pip install -r requirements.txt",
     "dev": "vite",
+    "dev:all": "concurrently \"npm run start\" \"npm run dev\"",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
