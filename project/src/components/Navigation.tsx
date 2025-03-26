@@ -17,7 +17,7 @@ function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <span className="text-xl font-bold text-blue-600">FastAPI Demo</span>
+            <span className="text-xl font-bold text-blue-600">Senior Design "Parking Management"</span>
           </div>
 
           {/* Desktop Navigation */}

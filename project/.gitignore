@@ -45,3 +45,9 @@ react-dom.js
 
 #npm metadata
 _metadata.json
+
+# Vite dependency chunks
+.vite/
+.vite/deps/
+**/node_modules/.vite/**
+**/.vite/deps/chunk-*.js
