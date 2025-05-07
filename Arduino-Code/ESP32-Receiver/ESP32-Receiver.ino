@@ -1,79 +1,83 @@
-#include <esp_now.h>
 #include <WiFi.h>
+#include <esp_now.h>
+#include <string.h>
 
-volatile bool receivingImage = false;
-volatile uint32_t expectedSize = 0;
-volatile uint32_t receivedSize = 0;
-volatile int packetCount = 0;
+// Trigger definitions
+#define IMG_START "IMG_START"
+#define IMG_END   "IMG_END"
 
-void OnDataRecv(const esp_now_recv_info *recv_info, const uint8_t *data, int len) {
-  if (len == 4 && !receivingImage) {
-    expectedSize = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
-    receivedSize = 0;
-    packetCount = 0;
+// Buffer to store incoming data
+uint8_t* imageBuffer = nullptr;  // Dynamic buffer
+size_t totalChunks = 0;
+size_t receivedChunks = 0;
+bool receivingImage = false;
+
+// Updated callback function to match new ESP-NOW API
+void OnDataRecv(const esp_now_recv_info *recvInfo, const uint8_t *incomingData, int len) {
+  // Check for IMG_START
+  if (len == strlen(IMG_START) + 4 && memcmp(incomingData, IMG_START, strlen(IMG_START)) == 0) {
+    // Extract total chunks
+    totalChunks = (incomingData[strlen(IMG_START)] << 24) |
+                  (incomingData[strlen(IMG_START) + 1] << 16) |
+                  (incomingData[strlen(IMG_START) + 2] << 8) |
+                  incomingData[strlen(IMG_START) + 3];
+    // Allocate buffer dynamically
+    imageBuffer = (uint8_t*)malloc(totalChunks * 196);
+    if (!imageBuffer) {
+      Serial.println("Failed to allocate buffer");
+      return;
+    }
     receivingImage = true;
-    Serial.println("START_IMAGE");
-    Serial.printf("Expected size: %u bytes\n", expectedSize);
+    receivedChunks = 0;
+    Serial.println("Received IMG_START, expecting " + String(totalChunks) + " chunks");
     return;
   }
 
-  if (len < 3 || !receivingImage) return;
-
-  packetCount++;
-  uint16_t offset = (data[0] << 8) | data[1];
-  size_t chunkSize = len - 2;
-  receivedSize += chunkSize;
-
-  // Serial.write(data, len); // Comment out to reduce load
-  Serial.printf("Packet %d, Offset: %u, Chunk size: %u\n", packetCount, offset, chunkSize);
-
-  if (receivedSize >= expectedSize) {
+  // Check for IMG_END
+  if (len == strlen(IMG_END) && memcmp(incomingData, IMG_END, strlen(IMG_END)) == 0) {
+    if (receivingImage && receivedChunks == totalChunks) {
+      // Send the complete image to Serial
+      Serial.write(imageBuffer, totalChunks * 196);
+      Serial.println("\nImage sent to Serial");
+    } else {
+      Serial.println("Image incomplete: received " + String(receivedChunks) + "/" + String(totalChunks) + " chunks");
+    }
+    free(imageBuffer);
+    imageBuffer = nullptr;
     receivingImage = false;
-    Serial.println("END_IMAGE");
-    Serial.printf("Total packets: %d, Total size: %u\n", packetCount, receivedSize);
+    return;
+  }
+
+  // Process image chunk
+  if (receivingImage && len > 4) {
+    // Extract sequence number
+    uint32_t seq = (incomingData[0] << 24) | (incomingData[1] << 16) | (incomingData[2] << 8) | incomingData[3];
+    if (seq < totalChunks) {
+      // Copy data to correct position in buffer
+      memcpy(imageBuffer + (seq * 196), incomingData + 4, len - 4);
+      receivedChunks++;
+    }
   }
 }
 
 void setup() {
-  Serial.begin(921600);
-  delay(1000);
+  Serial.begin(115200);
 
+  // Initialize Wi-Fi in STA mode
   WiFi.mode(WIFI_STA);
-  WiFi.begin("dummy_ssid", "dummy_password");
-  delay(2000);
-  Serial.println("Receiver MAC: " + WiFi.macAddress());
-  WiFi.disconnect();
-  WiFi.channel(1);
+  Serial.println(WiFi.macAddress());
 
+  // Initialize ESP-NOW
   if (esp_now_init() != ESP_OK) {
-    Serial.println("ESP-NOW init failed");
+    Serial.println("Error initializing ESP-NOW");
     return;
   }
 
+  // Register receive callback
   esp_now_register_recv_cb(OnDataRecv);
+  Serial.println("Set up complete!");
 }
 
 void loop() {
-  static unsigned long lastPacketTime = 0;
-  static unsigned long lastPrintTime = 0;
-
-  if (receivingImage && (millis() - lastPacketTime > 5000)) {
-    receivingImage = false;
-    Serial.println("END_IMAGE (timeout)");
-    Serial.printf("Received %d packets, %u bytes\n", packetCount, receivedSize);
-    expectedSize = 0;
-    receivedSize = 0;
-    packetCount = 0;
-  }
-
-  if (receivingImage) {
-    lastPacketTime = millis();
-  }
-
-  if (millis() - lastPrintTime >= 5000) {
-    Serial.println("Listening...");
-    lastPrintTime = millis();
-  }
-
-  delay(10);
+  delay(100); // Keep loop alive
 }
